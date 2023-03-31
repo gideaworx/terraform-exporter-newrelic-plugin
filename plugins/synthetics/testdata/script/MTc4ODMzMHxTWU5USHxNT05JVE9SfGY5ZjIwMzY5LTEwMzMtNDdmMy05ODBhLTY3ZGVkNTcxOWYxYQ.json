@@ -1,0 +1,13 @@
+{
+  "data": {
+    "actor": {
+      "account": {
+        "synthetics": {
+          "script": {
+            "text": "var assert = require('assert');\n\n$browser.get(\"https://www.example.com/signin\").then(function(){\n  return $browser.waitForAndFindElement($driver.By.xpath('//input[@id=\"raas_email\"]')).sendKeys($secure.TEST_ACCOUNT_LOGIN_NAME);\n}).then(function(){\n  console.log(\"username inputted\")\n  return $browser.findElement($driver.By.css('form')).submit();\n}).then(function(){\n  return $browser.waitForAndFindElement($driver.By.xpath('//input[@id=\"raas_password\"]')).sendKeys($secure.TEST_ACCOUNT_PASSWORD);\n}).then(function(){\n  console.log(\"password inputted\")\n  return $browser.findElement($driver.By.css('form')).submit();\n}).then(function(){\n  return $browser.waitForAndFindElement($driver.By.xpath('//button[@data-testid=\"success-screen-cta\"]')).click();\n}).then(function(){\n  return $browser.waitForAndFindElement($driver.By.xpath(\"//a[contains(text(),'Saved Articles')]\")).click();\n}).then(function(){\n  $browser.waitForAndFindElement($driver.By.xpath(\"//*\")).then(function(element){\n    element.getText().then(function(text){\n      assert(text.includes(\"Saved Articles\"), `Did not find 'Saved Articles' in text: ${text}`);\n      assert(text.includes(\"Binder\"), `Did not find 'Binder' in text: ${text}`);\n    })\n  })\n})"
+          }
+        }
+      }
+    }
+  }
+}

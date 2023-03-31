@@ -1,0 +1,29 @@
+{
+  "data": {
+    "actor": {
+      "account": {
+        "synthetics": {
+          "steps": [
+            {
+              "ordinal": 0,
+              "type": "NAVIGATE",
+              "values": [
+                "https://www.example.net",
+                ""
+              ]
+            },
+            {
+              "ordinal": 1,
+              "type": "ASSERT_ELEMENT",
+              "values": [
+                "//*[@id=\"field_mrcFlow_content_type\"]",
+                "present",
+                "true"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

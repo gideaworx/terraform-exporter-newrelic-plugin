@@ -1,0 +1,36 @@
+{
+  "data": {
+    "actor": {
+      "account": {
+        "synthetics": {
+          "steps": [
+            {
+              "ordinal": 0,
+              "type": "NAVIGATE",
+              "values": [
+                "https://www.example.gov",
+                ""
+              ]
+            },
+            {
+              "ordinal": 1,
+              "type": "CLICK_ELEMENT",
+              "values": [
+                "/html/body/div[1]/div[3]/section[1]/ul/li[1]/div/div[2]/div[1]/a"
+              ]
+            },
+            {
+              "ordinal": 2,
+              "type": "ASSERT_TEXT",
+              "values": [
+                "//*",
+                "%=",
+                "What should be here?"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "data": {
+    "actor": {
+      "account": {
+        "synthetics": {
+          "steps": [
+            {
+              "ordinal": 0,
+              "type": "NAVIGATE",
+              "values": [
+                "https:///www.example.com",
+                ""
+              ]
+            },
+            {
+              "ordinal": 1,
+              "type": "CLICK_ELEMENT",
+              "values": [
+                "//*[@id=\"content-body\"]/section[1]/ul/li[1]/div/div[2]//a"
+              ]
+            },
+            {
+              "ordinal": 2,
+              "type": "ASSERT_TEXT",
+              "values": [
+                "//*",
+                "%=",
+                "More about this"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}
