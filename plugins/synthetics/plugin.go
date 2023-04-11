@@ -219,15 +219,21 @@ func (s *SyntheticExporterCommand) renderCommon(resourceType string, resourceNam
 			runtimeTypeVersion = tag.Values[0]
 		}
 
-		if internal.IndexOfWithField(tag, monitor.GoldenTags.Tags, "Key") < 0 && internal.IndexOf(tag.Key, imputedTags) < 0 {
+		if internal.IndexOfWithField(tag, monitor.GoldenTags.Tags, "Key") < 0 &&
+			internal.IndexOf(tag.Key, imputedTags) < 0 &&
+			len(tag.Values) > 0 {
 			tagBlock := hclwrite.NewBlock("tag", nil)
 			tagBlock.Body().SetAttributeValue("key", cty.StringVal(tag.Key))
 			tagBlock.Body().SetAttributeValue("value", internal.ToCtyList(tag.Values))
 			tagBlocks = append(tagBlocks, tagBlock)
+
 		}
 	}
 
-	block.Body().SetAttributeValue("locations_public", cty.ListVal(locations))
+	if len(locations) > 0 {
+		block.Body().SetAttributeValue("locations_public", cty.ListVal(locations))
+	}
+
 	block.Body().AppendNewline()
 	block.Body().SetAttributeValue("period", cty.StringVal(period))
 	block.Body().SetAttributeValue("status", cty.StringVal(status))
