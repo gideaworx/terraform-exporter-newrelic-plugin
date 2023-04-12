@@ -136,6 +136,12 @@ func (s *SyntheticExporterCommand) Export(request plugin.ExportCommandRequest) (
 	// we have to close the work queue first or wg.Wait() blocks forever
 	close(workQueue)
 
+	// if commandError is not nil, wrap it in an error the CLI understands to process all the successful
+	// commands
+	if commandError != nil {
+		commandError = fmt.Errorf("%w: %v", plugin.ErrSomeExportsFailed, commandError)
+	}
+
 	// now that all of the work is done, we can close the error collector
 	close(errorCollector)
 	return plugin.ExportResponse{
