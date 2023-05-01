@@ -1,0 +1,8 @@
+name: newrelic
+plugin:
+  owner: gideaworx
+  name: terraform-exporter-newrelic-plugin
+registry:
+  repository:
+    pr:
+      enabled: true
