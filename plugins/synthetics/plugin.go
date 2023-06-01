@@ -79,7 +79,7 @@ func (s *SyntheticExporterCommand) Export(request plugin.ExportCommandRequest) (
 	if !request.SkipProviderOutput {
 		// Create the provider declaration. Since this is static for our purposes, we can copy directly from
 		// a string constant
-		provider, err := os.Create(filepath.Join(request.OutputDirectory, fmt.Sprintf("newrelic_synthetic_provider_%d.tf", s.AccountID)))
+		provider, err := os.Create(filepath.Join(request.OutputDirectory, fmt.Sprintf("newrelic_provider_%d.tf", s.AccountID)))
 		if err != nil {
 			return plugin.ExportResponse{}, fmt.Errorf("error creating provider file: %w", err)
 		}
