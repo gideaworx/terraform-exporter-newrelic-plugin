@@ -1,3 +1,4 @@
 .envrc
 
 dist/
+terraform-exporter-newrelic-plugin*

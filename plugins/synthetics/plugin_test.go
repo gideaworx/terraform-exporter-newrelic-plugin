@@ -109,7 +109,7 @@ Flags:
 				// this checks for one terraform file for each monitor plus newrelic_synthetic_provider.tf
 				Expect(generatedFiles).To(Equal(len(responseJSON.Data.Actor.EntitySearch.Results.Entities) + 1))
 
-				Expect(filepath.Join(outputDirectory, "newrelic_synthetic_provider.tf")).To(BeAnExistingFile())
+				Expect(filepath.Join(outputDirectory, "newrelic_synthetic_provider_56789.tf")).To(BeAnExistingFile())
 				for _, entity := range responseJSON.Data.Actor.EntitySearch.Results.Entities {
 					scName := internal.ToSnakeCase(entity.Name)
 					Expect(filepath.Join(outputDirectory, scName+".tf")).To(BeAnExistingFile())
