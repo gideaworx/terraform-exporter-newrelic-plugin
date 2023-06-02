@@ -20,9 +20,14 @@ $ go build main.go
 
 ## Installing the plugin into the CLI
 
+### From the Plugin Registry
+```bash
+$ terraform-exporter install-plugin newrelic --registry default
+```
+
 ```bash
 $ go install
-$ terraform-exporter install -f "$(go env GOPATH)/bin/terraform-exporter-newrelic-plugin"
+$ terraform-exporter install-plugin "$(go env GOPATH)/bin/terraform-exporter-newrelic-plugin" --local-file
 ```
 
 ## Contributing
