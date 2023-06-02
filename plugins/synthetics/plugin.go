@@ -20,14 +20,15 @@ import (
 var Version string = "0.0.1"
 
 type SyntheticExporterCommand struct {
-	AccountID       int    `short:"i" required:"true" help:"The New Relic Account ID"`
-	APIKey          string `short:"k" required:"true" help:"An API Key for the New Relic Acccount ID"`
-	LocatorQuery    string `short:"q" required:"true" default:"domain = 'SYNTH'" help:"The query used with NerdGraph to find monitors to export. Defaults to all synthetic monitors."`
-	ParallelWorkers uint   `short:"w" required:"true" default:"10" hidden:"true" help:"Number of monitors to export in parallel. Defaults to 10"`
-	importCommands  []plugin.ImportDirective
-	nrClient        *newrelic.NewRelic
-	outputDirectory string
-	nrClientOptions []newrelic.ConfigOption
+	AccountID           int    `short:"i" required:"true" help:"The New Relic Account ID"`
+	APIKey              string `short:"k" required:"true" help:"An API Key for the New Relic Acccount ID"`
+	LocatorQuery        string `short:"q" required:"true" default:"domain = 'SYNTH'" help:"The query used with NerdGraph to find monitors to export. Defaults to all synthetic monitors."`
+	ParallelWorkers     uint   `short:"w" required:"true" default:"10" hidden:"true" help:"Number of monitors to export in parallel. Defaults to 10"`
+	CreateAccountIdFile bool   `short:"a" hidden:"true" default:"false"`
+	importCommands      []plugin.ImportDirective
+	nrClient            *newrelic.NewRelic
+	outputDirectory     string
+	nrClientOptions     []newrelic.ConfigOption
 }
 
 func NewSyntheticExporterCommand(options ...newrelic.ConfigOption) *SyntheticExporterCommand {
@@ -86,6 +87,15 @@ func (s *SyntheticExporterCommand) Export(request plugin.ExportCommandRequest) (
 
 		fmt.Fprintf(provider, providerTF, s.AccountID)
 		provider.Close()
+	}
+
+	if s.CreateAccountIdFile {
+		accountID, err := os.Create(filepath.Join(request.OutputDirectory, ".account_id"))
+		if err != nil {
+			return plugin.ExportResponse{}, fmt.Errorf("could not create .account_id: %w", err)
+		}
+		defer accountID.Close()
+		fmt.Fprint(accountID, s.AccountID)
 	}
 
 	queueSize := len(response.Actor.EntitySearch.Results.Entities)

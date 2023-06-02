@@ -83,6 +83,7 @@ Flags:
 						"-i", "56789",
 						"-k", "1234",
 						"-w", "1",
+						"-a",
 					},
 				})
 				Expect(err).NotTo(HaveOccurred())
@@ -108,7 +109,7 @@ Flags:
 
 				// this checks for one terraform file for each monitor plus newrelic_provider.tf
 				Expect(generatedFiles).To(Equal(len(responseJSON.Data.Actor.EntitySearch.Results.Entities) + 1))
-
+				Expect(filepath.Join(outputDirectory, ".account_id")).To(BeAnExistingFile())
 				Expect(filepath.Join(outputDirectory, "newrelic_provider_56789.tf")).To(BeAnExistingFile())
 				for _, entity := range responseJSON.Data.Actor.EntitySearch.Results.Entities {
 					scName := internal.ToSnakeCase(entity.Name)
