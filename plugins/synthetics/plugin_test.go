@@ -17,7 +17,7 @@ import (
 
 	"github.com/gideaworx/terraform-exporter-newrelic-plugin/internal"
 	"github.com/gideaworx/terraform-exporter-newrelic-plugin/plugins/synthetics"
-	"github.com/gideaworx/terraform-exporter-plugin/go-plugin"
+	plugin "github.com/gideaworx/terraform-exporter-plugin-go"
 )
 
 var _ = Describe("Plugin", func() {

@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/gideaworx/terraform-exporter-newrelic-plugin/plugins/synthetics"
-	"github.com/gideaworx/terraform-exporter-plugin/go-plugin"
+	plugin "github.com/gideaworx/terraform-exporter-plugin-go"
 )
 
 var Version = "0.0.0"

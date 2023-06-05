@@ -12,7 +12,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/gideaworx/terraform-exporter-newrelic-plugin/internal"
-	"github.com/gideaworx/terraform-exporter-plugin/go-plugin"
+	plugin "github.com/gideaworx/terraform-exporter-plugin-go"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/newrelic/newrelic-client-go/newrelic"
 	"github.com/zclconf/go-cty/cty"

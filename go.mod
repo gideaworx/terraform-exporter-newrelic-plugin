@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/alecthomas/kong v0.7.1
-	github.com/gideaworx/terraform-exporter-plugin/go-plugin v0.1.1
+	github.com/gideaworx/terraform-exporter-plugin-go v0.2.0
 	github.com/hashicorp/hcl/v2 v2.17.0
 	github.com/mitchellh/pointerstructure v1.2.1
 	github.com/newrelic/newrelic-client-go v1.1.0
