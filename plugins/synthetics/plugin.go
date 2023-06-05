@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -188,7 +189,8 @@ func (s *SyntheticExporterCommand) exportSingleMonitor(wg *sync.WaitGroup, ctx c
 	case "SCRIPT_BROWSER":
 		render = s.renderScriptMonitor
 	default:
-		return fmt.Errorf("unsupported error type %q", monitor.MonitorType)
+		log.Printf("unsupported monitor type %q", monitor.MonitorType)
+		return nil
 	}
 
 	importCmd, err := render(ctx, monitor)
