@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/gideaworx/terraform-exporter-newrelic-plugin/internal"
 	plugin "github.com/gideaworx/terraform-exporter-plugin-go"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/newrelic/newrelic-client-go/newrelic"
 	"github.com/zclconf/go-cty/cty"
@@ -30,14 +30,21 @@ type SyntheticExporterCommand struct {
 	nrClient            *newrelic.NewRelic
 	outputDirectory     string
 	nrClientOptions     []newrelic.ConfigOption
+	logger              hclog.Logger
 }
 
 func NewSyntheticExporterCommand(options ...newrelic.ConfigOption) *SyntheticExporterCommand {
 	return &SyntheticExporterCommand{
 		importCommands:  []plugin.ImportDirective{},
 		nrClientOptions: options,
+		logger: hclog.New(&hclog.LoggerOptions{
+			Level:  hclog.Info,
+			Output: os.Stderr,
+		}),
 	}
 }
+
+var errSkip = errors.New("don't export")
 
 func (s *SyntheticExporterCommand) Help() (string, error) {
 	return internal.PluginCommandHelp(s)
@@ -178,24 +185,32 @@ func (s *SyntheticExporterCommand) exportMonitor(wg *sync.WaitGroup, ctx context
 func (s *SyntheticExporterCommand) exportSingleMonitor(wg *sync.WaitGroup, ctx context.Context, monitor MonitorEntity) error {
 	defer wg.Done()
 
+	s.logger.Info("Exporting Monitor %s", monitor.Name)
+
 	var render func(context.Context, MonitorEntity) (plugin.ImportDirective, error)
 
 	// at this time, SIMPLE and SCRIPT_API monitors are not supported
 	switch monitor.MonitorType {
-	case "BROWSER":
+	case "SIMPLE":
 		render = s.renderSimpleMonitor
 	case "STEP_MONITOR":
 		render = s.renderStepMonitor
 	case "SCRIPT_BROWSER":
 		render = s.renderScriptMonitor
 	default:
-		log.Printf("unsupported monitor type %q", monitor.MonitorType)
+		s.logger.Info("WARN:", hclog.Fmt("unsupported monitor type %q", monitor.MonitorType))
 		return nil
 	}
 
 	importCmd, err := render(ctx, monitor)
 	if err != nil {
-		return err
+		if errors.Is(err, errSkip) {
+			// ignore this monitor
+			return nil
+		}
+
+		s.logger.Info("ERR:", hclog.Fmt("error rendering monitor %q: %v", monitor.Name, err))
+		return nil
 	}
 
 	s.importCommands = append(s.importCommands, importCmd)
@@ -207,6 +222,7 @@ func (s *SyntheticExporterCommand) renderCommon(resourceType string, resourceNam
 	block := file.Body().AppendNewBlock("resource", []string{resourceType, resourceName})
 
 	block.Body().SetAttributeValue("name", cty.StringVal(monitor.Name))
+	block.Body().SetAttributeValue("type", cty.StringVal(monitor.MonitorType))
 
 	locations := []cty.Value{}
 	period := "EVERY_MINUTE"
@@ -238,19 +254,20 @@ func (s *SyntheticExporterCommand) renderCommon(resourceType string, resourceNam
 		}
 
 		if internal.IndexOfWithField(tag, monitor.GoldenTags.Tags, "Key") < 0 &&
-			internal.IndexOf(tag.Key, imputedTags) < 0 &&
 			len(tag.Values) > 0 {
 			tagBlock := hclwrite.NewBlock("tag", nil)
 			tagBlock.Body().SetAttributeValue("key", cty.StringVal(tag.Key))
-			tagBlock.Body().SetAttributeValue("value", internal.ToCtyList(tag.Values))
+			tagBlock.Body().SetAttributeValue("values", internal.ToCtyList(tag.Values))
 			tagBlocks = append(tagBlocks, tagBlock)
 
 		}
 	}
 
-	if len(locations) > 0 {
-		block.Body().SetAttributeValue("locations_public", cty.ListVal(locations))
+	if len(locations) == 0 {
+		return nil
 	}
+	locationList := cty.ListVal(locations)
+	block.Body().SetAttributeValue("locations_public", locationList)
 
 	block.Body().AppendNewline()
 	block.Body().SetAttributeValue("period", cty.StringVal(period))
@@ -277,8 +294,10 @@ func (s *SyntheticExporterCommand) renderSimpleMonitor(_ context.Context, monito
 	tfResourceName := internal.ToSnakeCase(monitor.Name)
 
 	file := s.renderCommon(tfResourceType, tfResourceName, monitor)
+	if file == nil {
+		return plugin.ImportDirective{}, errSkip
+	}
 	resourceBlock := file.Body().FirstMatchingBlock("resource", []string{tfResourceType, tfResourceName})
-	resourceBlock.Body().SetAttributeValue("type", cty.StringVal(monitor.MonitorType))
 	resourceBlock.Body().SetAttributeValue("enable_screenshot_on_failure_and_script", cty.BoolVal(true))
 	resourceBlock.Body().SetAttributeValue("bypass_head_request", cty.BoolVal(true))
 	resourceBlock.Body().SetAttributeValue("verify_ssl", cty.BoolVal(true))
@@ -286,7 +305,8 @@ func (s *SyntheticExporterCommand) renderSimpleMonitor(_ context.Context, monito
 
 	for _, tag := range monitor.Tags {
 		if tag.Key == "responseValidationText" {
-			resourceBlock.Body().SetAttributeValue("validation_text", cty.StringVal(tag.Values[0]))
+			resourceBlock.Body().SetAttributeValue("validation_string", cty.StringVal(tag.Values[0]))
+			break
 		}
 	}
 
@@ -298,6 +318,9 @@ func (s *SyntheticExporterCommand) renderStepMonitor(ctx context.Context, monito
 	tfResourceName := internal.ToSnakeCase(monitor.Name)
 
 	file := s.renderCommon(tfResourceType, tfResourceName, monitor)
+	if file == nil {
+		return plugin.ImportDirective{}, errSkip
+	}
 	resourceBlock := file.Body().FirstMatchingBlock("resource", []string{tfResourceType, tfResourceName})
 
 	vars := map[string]any{"accountID": s.AccountID, "guid": monitor.GUID}
@@ -321,6 +344,9 @@ func (s *SyntheticExporterCommand) renderScriptMonitor(ctx context.Context, moni
 	tfResourceName := internal.ToSnakeCase(monitor.Name)
 
 	file := s.renderCommon(tfResourceType, tfResourceName, monitor)
+	if file == nil {
+		return plugin.ImportDirective{}, errSkip
+	}
 	resourceBlock := file.Body().FirstMatchingBlock("resource", []string{tfResourceType, tfResourceName})
 
 	vars := map[string]any{"accountID": s.AccountID, "guid": monitor.GUID}

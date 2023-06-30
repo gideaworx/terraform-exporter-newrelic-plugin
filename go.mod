@@ -5,6 +5,7 @@ go 1.20
 require (
 	github.com/alecthomas/kong v0.7.1
 	github.com/gideaworx/terraform-exporter-plugin-go v0.2.0
+	github.com/hashicorp/go-hclog v1.5.0
 	github.com/hashicorp/hcl/v2 v2.17.0
 	github.com/mitchellh/pointerstructure v1.2.1
 	github.com/newrelic/newrelic-client-go v1.1.0
@@ -26,7 +27,6 @@ require (
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/pprof v0.0.0-20230602150820-91b7bce49751 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
-	github.com/hashicorp/go-hclog v1.5.0 // indirect
 	github.com/hashicorp/go-plugin v1.4.10 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.2 // indirect
 	github.com/hashicorp/yamux v0.1.1 // indirect
