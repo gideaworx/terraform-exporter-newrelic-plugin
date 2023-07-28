@@ -27,11 +27,13 @@ var _ = Describe("Plugin", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(helpText).To(Equal(`
 Flags:
-  -i, --account-id=INT    The New Relic Account ID
-  -k, --api-key=STRING    An API Key for the New Relic Acccount ID
-  -q, --locator-query="domain = 'SYNTH'"
-                          The query used with NerdGraph to find monitors to
-                          export. Defaults to all synthetic monitors.
+  -i, --account-id=INT          The New Relic Account ID
+  -k, --api-key=STRING          An API Key for the New Relic Acccount ID
+  -m, --monitor-id=MONITOR-ID,...
+                                The individual synthetic monitor ID to export.
+                                May be specified multiple times.
+  -q, --locator-query=STRING    The query used with NerdGraph to find monitors
+                                to export.
 `))
 	})
 
@@ -71,8 +73,8 @@ Flags:
 			})
 
 			AfterEach(func() {
-				// err := os.RemoveAll(outputDirectory)
-				// Expect(err).NotTo(HaveOccurred())
+				err := os.RemoveAll(outputDirectory)
+				Expect(err).NotTo(HaveOccurred())
 			})
 
 			It("Generates all monitors' files in outputDirectory", func() {
@@ -83,13 +85,14 @@ Flags:
 						"-i", "56789",
 						"-k", "1234",
 						"-w", "1",
+						"-q", "domain = 'SYNTH'",
 						"-a",
 					},
 				})
 				Expect(err).NotTo(HaveOccurred())
 
 				var responseJSON struct {
-					Data synthetics.GetMonitorsResponse `json:"data"`
+					Data synthetics.MonitorSearchResponse `json:"data"`
 				}
 
 				b, err := os.ReadFile("testdata/get_monitors.json")
@@ -126,6 +129,38 @@ Flags:
 						Fail(fmt.Sprintf("Monitor GUID %s has an output file but doesn't have an associated import directive", entity.GUID))
 					}
 				}
+			})
+
+			It("Generates specific monitors' files in outputDirectory", func() {
+				_, err := command.Export(plugin.ExportCommandRequest{
+					OutputDirectory:    outputDirectory,
+					SkipProviderOutput: false,
+					PluginArgs: []string{
+						"-i", "56789",
+						"-k", "1234",
+						"-w", "1",
+						"-m", "MTc4ODMzMHxTWU5USHxNT05JVE9SfDg0YmNkNWZhLWVhMzAtNDc5Yy04YmY0LTY3NzU2NTc1ZmQ1ZQ",
+						"-m", "MTc4ODMzMHxTWU5USHxNT05JVE9SfGMxOWIyYWIzLWU0ZjktNDAxNC05NDgyLWZmNTkzYjZjM2RmOA",
+						"-m", "MTc4ODMzMHxTWU5USHxNT05JVE9SfGY5ZjIwMzY5LTEwMzMtNDdmMy05ODBhLTY3ZGVkNTcxOWYxYQ",
+						"-a",
+					},
+				})
+				Expect(err).NotTo(HaveOccurred())
+
+				generatedFiles := 0
+				filepath.WalkDir(outputDirectory, func(path string, d fs.DirEntry, err error) error {
+					if strings.HasSuffix(path, ".tf") || filepath.Base(path) == ".account_id" {
+						generatedFiles++
+					}
+
+					return nil
+				})
+				Expect(generatedFiles).To(Equal(5))
+				Expect(filepath.Join(outputDirectory, ".account_id")).To(BeAnExistingFile())
+				Expect(filepath.Join(outputDirectory, "newrelic_provider_56789.tf")).To(BeAnExistingFile())
+				Expect(filepath.Join(outputDirectory, "monitor_name_2.tf")).To(BeAnExistingFile())
+				Expect(filepath.Join(outputDirectory, "monitor_name_9.tf")).To(BeAnExistingFile())
+				Expect(filepath.Join(outputDirectory, "monitor_name_25.tf")).To(BeAnExistingFile())
 			})
 		})
 	})

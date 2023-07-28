@@ -21,11 +21,12 @@ import (
 var Version string = "0.0.1"
 
 type SyntheticExporterCommand struct {
-	AccountID           int    `short:"i" required:"true" help:"The New Relic Account ID"`
-	APIKey              string `short:"k" required:"true" help:"An API Key for the New Relic Acccount ID"`
-	LocatorQuery        string `short:"q" required:"true" default:"domain = 'SYNTH'" help:"The query used with NerdGraph to find monitors to export. Defaults to all synthetic monitors."`
-	ParallelWorkers     uint   `short:"w" required:"true" default:"10" hidden:"true" help:"Number of monitors to export in parallel. Defaults to 10"`
-	CreateAccountIdFile bool   `short:"a" hidden:"true" default:"false"`
+	AccountID           int      `short:"i" required:"true" help:"The New Relic Account ID"`
+	APIKey              string   `short:"k" required:"true" help:"An API Key for the New Relic Acccount ID"`
+	MonitorID           []string `short:"m" required:"true" xor:"locator" help:"The individual synthetic monitor ID to export. May be specified multiple times."`
+	LocatorQuery        string   `short:"q" required:"true" xor:"locator" help:"The query used with NerdGraph to find monitors to export."`
+	ParallelWorkers     uint     `short:"w" required:"true" default:"10" hidden:"true" help:"Number of monitors to export in parallel. Defaults to 10"`
+	CreateAccountIdFile bool     `short:"a" hidden:"true" default:"true"`
 	importCommands      []plugin.ImportDirective
 	nrClient            *newrelic.NewRelic
 	outputDirectory     string
@@ -71,6 +72,12 @@ func (s *SyntheticExporterCommand) Export(request plugin.ExportCommandRequest) (
 		return plugin.ExportResponse{}, err
 	}
 
+	// There isn't an easy way to query nerdgraph for individual monitors with the data we need, so
+	// if we're asking for individual monitors, get them all and we'll filter them after the query
+	if len(s.MonitorID) > 0 {
+		s.LocatorQuery = "domain = 'SYNTH'"
+	}
+
 	ctx := context.Background()
 	queryVariables := map[string]any{"query": s.LocatorQuery}
 	s.nrClient, err = newrelic.New(append([]newrelic.ConfigOption{newrelic.ConfigPersonalAPIKey(s.APIKey)}, s.nrClientOptions...)...)
@@ -80,7 +87,7 @@ func (s *SyntheticExporterCommand) Export(request plugin.ExportCommandRequest) (
 	s.outputDirectory = request.OutputDirectory
 
 	// This collects all synthetics from NerdGraph, and parses the response into a GetMonitorsResponse instance.
-	var response GetMonitorsResponse
+	var response MonitorSearchResponse
 	if err := s.nrClient.NerdGraph.QueryWithResponseAndContext(ctx, getMonitors, queryVariables, &response); err != nil {
 		return plugin.ExportResponse{}, fmt.Errorf("error querying NerdGraph: %w", err)
 	}
@@ -106,7 +113,22 @@ func (s *SyntheticExporterCommand) Export(request plugin.ExportCommandRequest) (
 		fmt.Fprint(accountID, s.AccountID)
 	}
 
-	queueSize := len(response.Actor.EntitySearch.Results.Entities)
+	entities := make([]MonitorEntity, 0, len(response.Actor.EntitySearch.Results.Entities))
+	// if we're asking for individual entities, collect just them
+	if len(s.MonitorID) > 0 {
+		for _, e := range response.Actor.EntitySearch.Results.Entities {
+			if internal.IndexOf(e.GUID, s.MonitorID) >= 0 {
+				entities = append(entities, e)
+				if len(entities) == len(s.MonitorID) {
+					break
+				}
+			}
+		}
+	} else {
+		entities = append(entities, response.Actor.EntitySearch.Results.Entities...)
+	}
+
+	queueSize := len(entities)
 	errorCollector := make(chan error, queueSize)
 
 	// goroutines cannot return values. To collect errors that could happen in a goroutine,
@@ -146,7 +168,7 @@ func (s *SyntheticExporterCommand) Export(request plugin.ExportCommandRequest) (
 
 	// Add all the monitors to the work queue, so the individual goroutines can pull off the monitors
 	// as they're able to do so
-	for _, monitor := range response.Actor.EntitySearch.Results.Entities {
+	for _, monitor := range entities {
 		workQueue <- monitor
 	}
 
@@ -189,9 +211,9 @@ func (s *SyntheticExporterCommand) exportSingleMonitor(wg *sync.WaitGroup, ctx c
 
 	var render func(context.Context, MonitorEntity) (plugin.ImportDirective, error)
 
-	// at this time, SIMPLE and SCRIPT_API monitors are not supported
+	// at this time, SCRIPT_API monitors are not supported
 	switch monitor.MonitorType {
-	case "SIMPLE":
+	case "SIMPLE", "BROWSER":
 		render = s.renderSimpleMonitor
 	case "STEP_MONITOR":
 		render = s.renderStepMonitor

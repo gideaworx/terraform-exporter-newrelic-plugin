@@ -22,7 +22,13 @@ type MonitorStep struct {
 	Values  []string `json:"values"`
 }
 
-type GetMonitorsResponse struct {
+type MonitorLookupResponse struct {
+	Actor struct {
+		Entities []MonitorEntity `json:"entities"`
+	} `json:"actor"`
+}
+
+type MonitorSearchResponse struct {
 	Actor struct {
 		EntitySearch struct {
 			Results struct {
